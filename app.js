@@ -78,4 +78,3 @@ app.post('/login/', authentication, async (request, response) => {
 
 module.exports = app
 
-//https://github.com/AnkitSomkuwar/10.git
