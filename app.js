@@ -29,6 +29,20 @@ const initializeDBAndServer = async () => {
 
 initializeDBAndServer()
 
+const convertDbObjectToResponseObject = dbObject => {
+  return {
+    stateId: dbObject.state_id,
+    districtId: dbObject.district_id,
+    stateName: dbObject.state_name,
+    population: dbObject.population,
+    districtName: dbObject.district_name,
+    cases: dbObject.cases,
+    cured: dbObject.cured,
+    active: dbObject.active,
+    deaths: dbObject.deaths,
+  }
+}
+
 const authentication = (request, response, next) => {
   let jwtToken
   const authHeader = request.headers['authorization']
@@ -39,7 +53,7 @@ const authentication = (request, response, next) => {
     response.status(401)
     response.send('Invalid JWT Token')
   } else {
-    jwt.verify(jwtToken, 'MY_ANKIT', (error, payLoad) => {
+    jwt.verify(jwtToken, 'MY_SECRET_TOKEN', (error, payLoad) => {
       if (error) {
         response.status(401)
         response.send('Invalid  JWT Token')
@@ -50,14 +64,16 @@ const authentication = (request, response, next) => {
   }
 }
 
-app.post('/login/', authentication, async (request, response) => {
+// API 1
+
+app.post('/login/', async (request, response) => {
   const {username, password} = request.body
 
   const selectUserQuery = `
   SELECT * 
   FROm user 
   WHERE
-  Username = "${username}"
+  username = "${username}"
   `
   const dbUser = await db.get(selectUserQuery)
   if (dbUser === undefined) {
@@ -67,7 +83,7 @@ app.post('/login/', authentication, async (request, response) => {
     const isPasswordCorrect = await bcrypt.compare(password, dbUser.password)
     if (isPasswordCorrect === true) {
       const payLoad = {username: username}
-      const jwtToken = jwt.sign(payLoad, 'MY_ANKIT')
+      const jwtToken = jwt.sign(payLoad, 'MY_SECRET_TOKEN')
       response.send({jwtToken})
     } else {
       response.status(400)
@@ -76,5 +92,32 @@ app.post('/login/', authentication, async (request, response) => {
   }
 })
 
-module.exports = app
+// API 2
 
+app.get('/states/', authentication, async (request, response) => {
+  const getStatesDetail = `
+  SELECT * 
+  FROM state
+  `
+  const stateDetail = await db.all(getStatesDetail)
+  response.send(
+    stateDetail.map(eachState => convertDbObjectToResponseObject(eachState)),
+  )
+})
+
+// API 3
+
+app.get('/states/:stateId/', authentication, async (request, response) => {
+  const {stateId} = request.params
+
+  const getStateQuery = `
+  SELECT * 
+  FROM state 
+  WHERE 
+  state_id = ${stateId}
+  `
+  const getstate = await db.get(getStateQuery)
+  response.send(convertDbObjectToResponseObject(getstate))
+})
+
+module.exports = app
